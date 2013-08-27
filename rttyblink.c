@@ -18,15 +18,23 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+//Command to upload via DFU
+//dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D blinky.bin
+
 #include <libopencm3/stm32/f4/rcc.h>
 #include <libopencm3/stm32/f4/gpio.h>
 #include <libopencm3/cm3/common.h>
+#include <libopencm3/stm32/dac.h>
 
 void delay(uint32_t count);
 void delay_ms(uint32_t ms);
 
 #define DELAY_1_MS (uint32_t)(24740)
 #define DELAY_MAX_MS (0xFFFFFFFF / DELAY_1_MS)
+
+//DAC
+void dac_setup(void);
+void set_dac_level(int power);
 
 //RTTY
 void rtty_txbit (int bit);
@@ -47,6 +55,19 @@ static void gpio_setup(void)
 	/* Set GPIO12-15 (in GPIO port D) to 'output push-pull'. */
 	gpio_mode_setup(GPIOD, GPIO_MODE_OUTPUT,
                     GPIO_PUPD_NONE, GPIO12 | GPIO13 | GPIO14 | GPIO15);
+}
+
+//https://github.com/pcbwriter/pcbwriter/blob/master/firmware/dac.c
+void dac_setup(void)
+{
+    gpio_mode_setup(GPIOA, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, GPIO4);
+    rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_DACEN);
+    dac_enable(CHANNEL_1);
+}
+
+void set_dac_level(int power)
+{
+    dac_load_data_buffer_single(power, RIGHT12, CHANNEL_1);
 }
 
 //Adding in RTTY
@@ -96,14 +117,14 @@ void rtty_txbit (int bit)
     if (bit)
     {
         // high
-        gpio_set(GPIOD, GPIO12);	/* LED on/off */
-        gpio_clear(GPIOD, GPIO13);
+        gpio_set(GPIOD, GPIO12);	/* LED on */
+        set_dac_level(2500);
     }
     else
     {
         // low
-        gpio_set(GPIOD, GPIO13);
-        gpio_clear(GPIOD, GPIO12);
+        gpio_clear(GPIOD, GPIO12);  /* LED off */
+        set_dac_level(3000);
     }
     delay_ms(19); // 10000 = 100 BAUD 20150
     
@@ -130,6 +151,7 @@ int main(void)
 {
 	clock_setup();
 	gpio_setup();
+    dac_setup();
     
 	gpio_set(GPIOD, GPIO12 | GPIO13);
     delay_ms(1000);
