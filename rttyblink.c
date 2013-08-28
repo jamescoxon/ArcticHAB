@@ -25,12 +25,16 @@
 #include <libopencm3/stm32/f4/gpio.h>
 #include <libopencm3/cm3/common.h>
 #include <libopencm3/stm32/dac.h>
+#include <stdio.h>
 
 void delay(uint32_t count);
 void delay_ms(uint32_t ms);
+void delay_ns(uint32_t ns);
 
-#define DELAY_1_MS (uint32_t)(24740)
+#define DELAY_1_MS (uint32_t)(30925)
 #define DELAY_MAX_MS (0xFFFFFFFF / DELAY_1_MS)
+#define DELAY_1_NS (uint32_t)(31)
+#define DELAY_MAX_NS (0xFFFFFFFF / DELAY_1_NS)
 
 //DAC
 void dac_setup(void);
@@ -41,6 +45,7 @@ void rtty_txbit (int bit);
 void rtty_txbyte (char c);
 void rtty_txstring (char * string);
 
+long int delay_time = 570000;
 /* Set STM32 to 168 MHz. */
 static void clock_setup(void)
 {
@@ -118,7 +123,7 @@ void rtty_txbit (int bit)
     {
         // high
         gpio_set(GPIOD, GPIO12);	/* LED on */
-        set_dac_level(2500);
+        set_dac_level(2750);
     }
     else
     {
@@ -126,7 +131,7 @@ void rtty_txbit (int bit)
         gpio_clear(GPIOD, GPIO12);  /* LED off */
         set_dac_level(3000);
     }
-    delay_ms(19); // 10000 = 100 BAUD 20150
+    delay(delay_time); // 50baud = 570000
     
 }
 
@@ -147,14 +152,28 @@ void delay_ms(uint32_t ms) {
     }
 }
 
+void delay_ns(uint32_t ns) {
+    if(ns > DELAY_MAX_NS) {
+        uint8_t i;
+        for(i=0; i<(ns / DELAY_MAX_NS) - 1; i++)
+            delay(0xFFFFFFFF);
+        delay(ns % DELAY_MAX_NS);
+    } else {
+        delay(ns * DELAY_1_NS);
+    }
+}
+
 int main(void)
 {
+    int n;
+    char superbuffer [80]; //Telem string buffer
+    
 	clock_setup();
 	gpio_setup();
     dac_setup();
     
 	gpio_set(GPIOD, GPIO12 | GPIO13);
-    delay_ms(1000);
+    delay_ms(5000);
     gpio_clear(GPIOD, GPIO12 | GPIO13);
     delay_ms(1000);
 
@@ -163,7 +182,15 @@ int main(void)
 	/* Blink the LED (PC8) on the board. */
 	while (1) {
 
-        rtty_txstring("TEST TEST TEST");
+        gpio_set(GPIOD, GPIO13);
+        n = sprintf (superbuffer, "$$ATLAS,%ld,TEST,TEST,TEST,TEST\n", delay_time);
+        rtty_txstring(superbuffer);
+        
+        gpio_clear(GPIOD, GPIO13);
+        
+        delay(33500000);
+        
+        
     }
 
 	return 0;
