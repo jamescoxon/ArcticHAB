@@ -19,7 +19,7 @@
 
 BINARY = rttyblink
 
-LDSCRIPT = stm32f4-discovery.ld
+LDSCRIPT = ../stm32f4-discovery.ld
 
-include Makefile.include
+include ../Makefile.include
 
