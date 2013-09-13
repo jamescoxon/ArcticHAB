@@ -109,9 +109,21 @@ void send_newline(){
     usart_send_blocking(USART2, '\n');
 }
 
+void send_string(char * string){
+    
+    int i = 0;
+    
+	while ( string[i] != '\0')
+	{
+		usart_send_blocking(USART2, string[i]); /* USART2: Send byte. */
+        i++;
+	}
+    
+    send_newline();
+}
+
 int main(void)
 {
-    int c = 0;
     
 	clock_setup();
 	gpio_setup();
@@ -123,8 +135,9 @@ int main(void)
 	while (1) {
         
         gpio_set(GPIOD, GPIO13);
-        usart_send_blocking(USART2, c + '0'); /* USART2: Send byte. */
-        c++;
+        
+        send_string("TEST");
+        
         gpio_clear(GPIOD, GPIO13);
         delay_ms(1000);
         
