@@ -17,7 +17,7 @@
 ## along with this library.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
-BINARY = rttyblink/rttyblink
+BINARY = audio1/audio1
 
 LDSCRIPT = stm32f4-discovery.ld
 
