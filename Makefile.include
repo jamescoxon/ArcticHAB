@@ -28,6 +28,7 @@ OBJDUMP		= $(PREFIX)-objdump
 GDB		= $(PREFIX)-gdb
 FLASH		= $(shell which st-flash)
 
+DSPLIB_DIR = ../CMSIS
 TOOLCHAIN_DIR ?= ../libopencm3
 ifeq ($(wildcard ../libopencm3/lib/libopencm3_stm32f4.a),)
 ifneq ($(strip $(shell which $(CC))),)
@@ -44,11 +45,12 @@ CFLAGS		+= -Os -g \
 		   -Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes \
 		   -Wundef -Wshadow \
 		   -I$(TOOLCHAIN_DIR)/include \
+		   -I../CMSIS/include \
 		   -fno-common -mcpu=cortex-m4 -mthumb \
 		   -mfloat-abi=hard -mfpu=fpv4-sp-d16 -MD -DSTM32F4 -std=c99
 LDSCRIPT	?= $(BINARY).ld
 LDFLAGS		+= --static -lc -lnosys -L$(TOOLCHAIN_DIR)/lib \
-			 -L$(TOOLCHAIN_DIR)/lib/stm32/f4 \
+		   -L../CMSIS/lib -L$(TOOLCHAIN_DIR)/lib/stm32/f4 \
 		   -T$(LDSCRIPT) -nostartfiles -Wl,--gc-sections \
 		   -mthumb -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
 OBJS		+= $(BINARY).o

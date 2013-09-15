@@ -21,15 +21,34 @@
 //Command to upload via DFU
 //dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D blinky.bin
 
+
+/**
+ * IO definitions
+ *
+ * define access restrictions to peripheral registers
+ */
+
+#define     __I     volatile const            /*!< defines 'read only' permissions      */
+#define     __O     volatile                  /*!< defines 'write only' permissions     */
+#define     __IO    volatile                  /*!< defines 'read / write' permissions   */
+
+#define ARM_MATH_CM4
 #include <libopencm3/stm32/f4/rcc.h>
 #include <libopencm3/stm32/f4/gpio.h>
 #include <libopencm3/cm3/common.h>
 #include <libopencm3/stm32/usart.h>
+#include <libopencm3/stm32/f4/adc.h>
 #include <stdio.h>
+
+#include <arm_math.h>
+#include "arm_const_structs.h"
 
 void delay(uint32_t count);
 void delay_ms(uint32_t ms);
 void delay_ns(uint32_t ns);
+void send_string(char * string);
+void send_newline(void);
+int read_adc(void);
 
 #define DELAY_1_MS (uint32_t)(30925)
 #define DELAY_MAX_MS (0xFFFFFFFF / DELAY_1_MS)
@@ -76,6 +95,20 @@ static void usart_setup(void)
 	usart_enable(USART2);
 }
 
+static void adc_setup(void)
+{
+    gpio_mode_setup(GPIOA, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, GPIO1);
+    rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_ADC1EN);
+    adc_set_clk_prescale(ADC_CCR_ADCPRE_BY2);
+    adc_disable_scan_mode(ADC1);
+    adc_set_single_conversion_mode(ADC1);
+    adc_set_sample_time(ADC1, ADC_CHANNEL1, ADC_SMPR_SMP_3CYC);
+    uint8_t channels[] = {ADC_CHANNEL1};
+    adc_set_regular_sequence(ADC1, 1, channels);
+    adc_set_multi_mode(ADC_CCR_MULTI_INDEPENDENT);
+    adc_power_on(ADC1);
+}
+
 void delay(uint32_t count) {
     uint32_t i;
     for(i=0; i<count; i++)
@@ -104,7 +137,7 @@ void delay_ns(uint32_t ns) {
     }
 }
 
-void send_newline(){
+void send_newline(void){
     usart_send_blocking(USART2, '\r');
     usart_send_blocking(USART2, '\n');
 }
@@ -119,27 +152,47 @@ void send_string(char * string){
         i++;
 	}
     
-    send_newline();
+    
+}
+
+int read_adc(void){
+	adc_start_conversion_regular(ADC1);
+	while (! adc_eoc(ADC1));
+	int reg16;
+	reg16 = adc_read_regular(ADC1);
+	return reg16;
 }
 
 int main(void)
 {
+    int analog_data = 0;
+    char superbuffer [80]; //Telem string buffer
     
 	clock_setup();
 	gpio_setup();
     usart_setup();
+    adc_setup();
     
     gpio_set(GPIOD, GPIO12);
 
+    
 	/* Blink the LED (PC8) on the board. */
 	while (1) {
         
-        gpio_set(GPIOD, GPIO13);
+        //gpio_set(GPIOD, GPIO13);
         
-        send_string("TEST");
+        //send_string("TEST");
+        analog_data = read_adc();
+        //usart_send_blocking(USART2, analog_data);
+        //send_newline();
         
-        gpio_clear(GPIOD, GPIO13);
-        delay_ms(1000);
+        sprintf (superbuffer, "%d", analog_data);
+        
+        send_string(superbuffer);
+        send_newline();
+        
+        //gpio_clear(GPIOD, GPIO13);
+        //delay_ms(100);
         
     }
 
