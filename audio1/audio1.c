@@ -190,12 +190,12 @@ void generate_graph(int raw_data[256]){
     //Now we work through our sample and look at the value and put the corresponding point in the right place.
     
     int gap_between_samples = 256 / 20;
-    uint8_t i;
+    int i;
     uint8_t pos = 0;
     
     send_string("Start graph");
     send_newline();
-    for(i=0; i < 20; i++){
+    for(i=0; i < 255; (i = i + 12)){
         send_string("o");
         
         if(raw_data[i] < 410) {line0[pos] = '*';}
@@ -277,7 +277,7 @@ int main(void)
         send_newline();
 
         uint8_t i;
-        for(i=0; i<200; i++){
+        for(i=0; i<255; i++){
             testInput_f32_10khz[i] = read_adc();
             send_string(".");
         }
