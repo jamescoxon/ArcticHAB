@@ -167,36 +167,36 @@ void generate_graph(int raw_data[256]){
 
     //First define our 10 blocks, each will be a printed string of 20 chars long
     //0
-    char line0[20] = "                   ";
+    char line0[40] = "                                       ";
     //1
-    char line1[20] = "                   ";
+    char line1[40] = "                                       ";
     //2
-    char line2[20] = "                   ";
+    char line2[40] = "                                       ";
     //3
-    char line3[20] = "                   ";
+    char line3[40] = "                                       ";
     //4
-    char line4[20] = "                   ";
+    char line4[40] = "                                       ";
     //5
-    char line5[20] = "                   ";
+    char line5[40] = "                                       ";
     //6
-    char line6[20] = "                   ";
+    char line6[40] = "                                       ";
     //7
-    char line7[20] = "                   ";
+    char line7[40] = "                                       ";
     //8
-    char line8[20] = "                   ";
+    char line8[40] = "                                       ";
     //9
-    char line9[20] = "                   ";
+    char line9[40] = "                                       ";
     
     //Now we work through our sample and look at the value and put the corresponding point in the right place.
     
-    int gap_between_samples = 256 / 20;
+    int gap_between_samples = 256 / 40;
     int i;
     uint8_t pos = 0;
     
-    send_string("Start graph");
-    send_newline();
-    for(i=0; i < 255; (i = i + 12)){
-        send_string("o");
+    //send_string("Start graph");
+    //send_newline();
+    for(i=0; i < 255; (i = i + gap_between_samples)){
+        //send_string("o");
         
         if(raw_data[i] < 410) {line0[pos] = '*';}
         else if((raw_data[i] >= 410) & (raw_data[i] < 820)){line1[pos] = '*';}
@@ -225,11 +225,21 @@ void generate_graph(int raw_data[256]){
          */
         pos++;
     }
+    //send_newline();
+    
     send_newline();
+    send_newline();
+    send_newline();
+    send_newline();
+    send_newline();
+    
+    
     send_string("Print Graph");
     send_newline();
     
+    
     //Now print the data
+    
     send_string(line0);
     send_newline();
     send_string(line1);
@@ -251,6 +261,17 @@ void generate_graph(int raw_data[256]){
     send_string(line9);
     send_newline();
     
+
+    send_newline();
+    send_newline();
+    send_newline();
+    send_newline();
+    send_newline();
+    send_newline();
+    send_newline();
+    //send_newline();
+    //send_newline();
+    
     
 }
 
@@ -268,28 +289,28 @@ int main(void)
     gpio_set(GPIOD, GPIO12);
 
     
-    send_string("Starting data collection");
-    send_newline();
+    //send_string("Starting data collection");
+    //send_newline();
 	/* Blink the LED (PC8) on the board. */
 	while (1) {
         
-        send_string("ADC");
-        send_newline();
+        //send_string("ADC");
+        //send_newline();
 
         uint8_t i;
         for(i=0; i<255; i++){
             testInput_f32_10khz[i] = read_adc();
-            send_string(".");
+            //send_string(".");
         }
-        send_newline();
+        //send_newline();
         
-        send_string("Collected data, graphing..."); send_newline();
+        //send_string("Collected data, graphing..."); send_newline();
         generate_graph(testInput_f32_10khz);
         
-        send_string("Completed");
-        send_newline();
+        //send_string("Completed");
+        //send_newline();
 
-        delay_ms(10000);
+        delay_ms(200);
         
     }
 
