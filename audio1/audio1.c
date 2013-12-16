@@ -33,11 +33,13 @@
 #define     __IO    volatile                  /*!< defines 'read / write' permissions   */
 
 #define ARM_MATH_CM4
+#define __FPU_PRESENT 1
 #include <libopencm3/stm32/f4/rcc.h>
 #include <libopencm3/stm32/f4/gpio.h>
 #include <libopencm3/cm3/common.h>
 #include <libopencm3/stm32/usart.h>
 #include <libopencm3/stm32/f4/adc.h>
+#include <libopencm3/stm32/dac.h>
 #include <stdio.h>
 
 #include <arm_math.h>
@@ -49,6 +51,11 @@ void delay_ns(uint32_t ns);
 void send_string(char * string);
 void send_newline(void);
 int read_adc(void);
+void generate_graph(int raw_data[256]);
+
+//DAC
+void dac_setup(void);
+void set_dac_level(int power);
 
 #define DELAY_1_MS (uint32_t)(30925)
 #define DELAY_MAX_MS (0xFFFFFFFF / DELAY_1_MS)
@@ -107,6 +114,19 @@ static void adc_setup(void)
     adc_set_regular_sequence(ADC1, 1, channels);
     adc_set_multi_mode(ADC_CCR_MULTI_INDEPENDENT);
     adc_power_on(ADC1);
+}
+
+//https://github.com/pcbwriter/pcbwriter/blob/master/firmware/dac.c
+void dac_setup(void)
+{
+    gpio_mode_setup(GPIOA, GPIO_MODE_ANALOG, GPIO_PUPD_NONE, GPIO4);
+    rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_DACEN);
+    dac_enable(CHANNEL_1);
+}
+
+void set_dac_level(int power)
+{
+    dac_load_data_buffer_single(power, RIGHT12, CHANNEL_1);
 }
 
 void delay(uint32_t count) {
@@ -190,42 +210,31 @@ void generate_graph(int raw_data[256]){
     //Now we work through our sample and look at the value and put the corresponding point in the right place.
     
     int gap_between_samples = 256 / 40;
+    
+    int scale_max = 1024, scale_min = 768;
+    int scaled_gap = (scale_max - scale_min) / 10;
+    int scale_mid_point = (scale_min + (scale_max - scale_min) / 2);
     int i;
     uint8_t pos = 0;
     
     //send_string("Start graph");
     //send_newline();
     for(i=0; i < 255; (i = i + gap_between_samples)){
-        //send_string("o");
         
-        if(raw_data[i] < 410) {line0[pos] = '*';}
-        else if((raw_data[i] >= 410) & (raw_data[i] < 820)){line1[pos] = '*';}
-        else if((raw_data[i] >= 820) & (raw_data[i] < 1230)){line2[pos] = '*';}
-        else if((raw_data[i] >= 1230) & (raw_data[i] < 1640)){line3[pos] = '*';}
-        else if((raw_data[i] >= 1640) & (raw_data[i] < 2050)){line4[pos] = '*';}
-        else if((raw_data[i] >= 2050) & (raw_data[i] < 2460)){line5[pos] = '*';}
-        else if((raw_data[i] >= 2460) & (raw_data[i] < 2870)){line6[pos] = '*';}
-        else if((raw_data[i] >= 2870) & (raw_data[i] < 3280)){line7[pos] = '*';}
-        else if((raw_data[i] >= 3280) & (raw_data[i] < 3690)){line8[pos] = '*';}
-        else if(raw_data[i] >= 3690){line9[pos] = '*';}
-        else {};
-         
-        /*
-         if(raw_data[i] < 0.2) {line0[pos] = '*';}
-         else if((raw_data[i] >= 0.2) & (raw_data[i] < 0.4)){line1[pos] = '*';}
-         else if((raw_data[i] >= 0.4) & (raw_data[i] < 0.6)){line2[pos] = '*';}
-         else if((raw_data[i] >= 0.6) & (raw_data[i] < 0.8)){line3[pos] = '*';}
-         else if((raw_data[i] >= 0.8) & (raw_data[i] < 1.0)){line4[pos] = '*';}
-         else if((raw_data[i] >= 1.0) & (raw_data[i] < 1.2)){line5[pos] = '*';}
-         else if((raw_data[i] >= 1.2) & (raw_data[i] < 1.4)){line6[pos] = '*';}
-         else if((raw_data[i] >= 1.4) & (raw_data[i] < 1.6)){line7[pos] = '*';}
-         else if((raw_data[i] >= 1.6) & (raw_data[i] < 1.8)){line8[pos] = '*';}
-         else if(raw_data[i] >= 1.8){line9[pos] = '*';}
-         else {};
-         */
+        if(raw_data[i] < (scale_mid_point - (scaled_gap * 4)))                                                                  {line0[pos] = '*';}
+        else if((raw_data[i] >= (scale_mid_point - (scaled_gap * 4)))   &   (raw_data[i] < (scale_mid_point - scaled_gap * 3))) {line1[pos] = '*';}
+        else if((raw_data[i] >= (scale_mid_point - (scaled_gap * 3)))   &   (raw_data[i] < (scale_mid_point - scaled_gap * 2))) {line2[pos] = '*';}
+        else if((raw_data[i] >= (scale_mid_point - (scaled_gap * 2)))   &   (raw_data[i] < (scale_mid_point - scaled_gap)))     {line3[pos] = '*';}
+        else if((raw_data[i] >= (scale_mid_point - scaled_gap))         &   (raw_data[i] < (scale_mid_point)))                  {line4[pos] = '*';}
+        else if((raw_data[i] >= (scale_mid_point))                      &   (raw_data[i] < (scale_mid_point + scaled_gap)))     {line5[pos] = '*';}
+        else if((raw_data[i] >= (scale_mid_point + scaled_gap))         &   (raw_data[i] < (scale_mid_point + scaled_gap * 2))) {line6[pos] = '*';}
+        else if((raw_data[i] >= (scale_mid_point + (scaled_gap * 2)))   &   (raw_data[i] < (scale_mid_point + scaled_gap * 3))) {line7[pos] = '*';}
+        else if((raw_data[i] >= (scale_mid_point + (scaled_gap * 3)))   &   (raw_data[i] < (scale_mid_point + scaled_gap * 4))) {line8[pos] = '*';}
+        else if(raw_data[i] >= (scale_mid_point + (scaled_gap * 4)))                                                            {line9[pos] = '*';}
+        //else {};
+
         pos++;
     }
-    //send_newline();
     
     send_newline();
     send_newline();
@@ -240,25 +249,25 @@ void generate_graph(int raw_data[256]){
     
     //Now print the data
     
-    send_string(line0);
-    send_newline();
-    send_string(line1);
-    send_newline();
-    send_string(line2);
-    send_newline();
-    send_string(line3);
-    send_newline();
-    send_string(line4);
-    send_newline();
-    send_string(line5);
-    send_newline();
-    send_string(line6);
-    send_newline();
-    send_string(line7);
+    send_string(line9);
     send_newline();
     send_string(line8);
     send_newline();
-    send_string(line9);
+    send_string(line7);
+    send_newline();
+    send_string(line6);
+    send_newline();
+    send_string(line5);
+    send_newline();
+    send_string(line4);
+    send_newline();
+    send_string(line3);
+    send_newline();
+    send_string(line2);
+    send_newline();
+    send_string(line1);
+    send_newline();
+    send_string(line0);
     send_newline();
     
 
@@ -277,7 +286,6 @@ void generate_graph(int raw_data[256]){
 
 int main(void)
 {
-    int analog_data = 0;
     int testInput_f32_10khz[256];
     char superbuffer [80]; //Telem string buffer
     
@@ -285,9 +293,11 @@ int main(void)
 	gpio_setup();
     usart_setup();
     adc_setup();
+    dac_setup();
     
     gpio_set(GPIOD, GPIO12);
 
+    set_dac_level(2750);
     
     //send_string("Starting data collection");
     //send_newline();
@@ -297,7 +307,7 @@ int main(void)
         //send_string("ADC");
         //send_newline();
 
-        uint8_t i;
+        int i;
         for(i=0; i<255; i++){
             testInput_f32_10khz[i] = read_adc();
             //send_string(".");
@@ -305,12 +315,18 @@ int main(void)
         //send_newline();
         
         //send_string("Collected data, graphing..."); send_newline();
-        generate_graph(testInput_f32_10khz);
+        //generate_graph(testInput_f32_10khz);
         
+        
+        for(i=0; i<255; (i=i+6)){
+            sprintf (superbuffer, "%d", testInput_f32_10khz[i]);
+            send_string(superbuffer);
+            send_newline();
+        }
         //send_string("Completed");
         //send_newline();
 
-        delay_ms(200);
+        delay_ms(1000);
         
     }
 
