@@ -12,7 +12,7 @@ volatile char c;
 
 //Variables
 int32_t lat = 514981000, lon = -530000, alt = 0;
-uint8_t hour = 0, minute = 0, second = 0, month = 0, day = 0, lock = 0, sats = 0, navmode = 0, n = 1, GPSerror = 0;
+uint8_t gps_hour = 0, gps_minute = 0, gps_second = 0, gps_month = 0, gps_day = 0, lock = 0, sats = 0, navmode = 0, n = 1, GPSerror = 0;
 char superbuffer [80]; //Telem string buffer
 uint8_t buf[60]; //GPS receive buffer
 int count = 0;
@@ -31,7 +31,7 @@ void rtty_txstring (char * string)
 	while ( c != '\0')
 	{
           timer0count = 0;
-          timer0.begin(timerCallback0, 19925); // 19925 (21000 - 18850 microseconds)
+          timer0.begin(timerCallback0, 19925); // 19925 (21000 - 18850 microgps_seconds)
           while(timer0count < 11){}
           timer0.end();
           c = *string++;
@@ -95,7 +95,7 @@ void loop()
   gps_get_position();
   gps_get_time();
   
-  n=sprintf (superbuffer, "$$ATLAS,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, lock, navmode);
+  n=sprintf (superbuffer, "$$ATLAS,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d", count, gps_hour, gps_minute, gps_second, lat, lon, alt, sats, lock, navmode);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
   
   Serial.println(superbuffer);
@@ -200,7 +200,7 @@ bool _gps_verify_checksum(uint8_t* data, uint8_t len)
 }
 
 /**
- * Get data from GPS, times out after 1 second.
+ * Get data from GPS, times out after 1 gps_second.
  */
 void gps_get_data()
 {
@@ -212,7 +212,7 @@ void gps_get_data()
       buf[i] = Serial1.read();
       i++;
     }
-    // Timeout if no valid response in 1 seconds
+    // Timeout if no valid response in 1 gps_seconds
     if (millis() - startTime > 1000) {
       break;
     }
@@ -306,7 +306,7 @@ void gps_get_position()
 }
 
 /**
- * Get the hour, minute and second from the GPS using the NAV-TIMEUTC
+ * Get the gps_hour, gps_minute and gps_second from the GPS using the NAV-TIMEUTC
  * message.
  */
 void gps_get_time()
@@ -332,16 +332,16 @@ void gps_get_time()
     }
     
     if(GPSerror == 0) {
-      if(hour > 23 || minute > 59 || second > 59)
+      if(gps_hour > 23 || gps_minute > 59 || gps_second > 59)
       {
         GPSerror = 34;
       }
       else {
-        month = buf[20];
-        day = buf[21];
-        hour = buf[22];
-        minute = buf[23];
-        second = buf[24];
+        gps_month = buf[20];
+        gps_day = buf[21];
+        gps_hour = buf[22];
+        gps_minute = buf[23];
+        gps_second = buf[24];
       }
     }
 }
