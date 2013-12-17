@@ -4,10 +4,15 @@
 //
 // jacoxon@googlemail.com
 
-
 int txPin = 13;
 volatile uint32_t timer0count;
 volatile char c;
+
+//Variables
+int32_t lat = 514981000, lon = -530000, alt = 0;
+uint8_t hour = 0, minute = 0, second = 0, month = 0, day = 0, lock = 0, sats = 0, navmode = 0, n = 1, GPSerror = 0;
+char superbuffer [80]; //Telem string buffer
+int count = 0;
 
 IntervalTimer timer0;
 
@@ -23,7 +28,7 @@ void rtty_txstring (char * string)
 	while ( c != '\0')
 	{
           timer0count = 0;
-          timer0.begin(timerCallback0, 19500); // 19500 microseconds
+          timer0.begin(timerCallback0, 19925); // 19925 (21000 - 18850 microseconds
           while(timer0count < 11){
           }
           timer0.end();
@@ -61,8 +66,8 @@ void timerCallback0() {
     rtty_txbit (1); // Stop bit
   }
   timer0count++;
-  
 }
+
 
 void setup()
 {
@@ -71,6 +76,49 @@ void setup()
 
 void loop()
 {
-  rtty_txstring("$$ATLAS,0,00:00:00,00.0000,00.0000,0000*0000\n");
+  int n;
+  count++;
+  
+  n=sprintf (superbuffer, "$$ATLAS,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d", count, hour, minute, second, lat, lon, alt, sats, lock, navmode);
+  n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
+  
+  rtty_txstring("$$");
+  rtty_txstring(superbuffer);
   delay(1000);
 }
+
+//************Other Functions*****************
+
+uint16_t gps_CRC16_checksum (char *string)
+{
+	size_t i;
+	uint16_t crc;
+	uint8_t c;
+ 
+	crc = 0xFFFF;
+ 
+	// Calculate checksum ignoring the first two $s
+	for (i = 2; i < strlen(string); i++)
+	{
+		c = string[i];
+		crc = crc_xmodem_update (crc, c);
+	}
+ 
+	return crc;
+}
+
+uint16_t crc_xmodem_update (uint16_t crc, uint8_t data)
+    {
+        int i;
+
+        crc = crc ^ ((uint16_t)data << 8);
+        for (i=0; i<8; i++)
+        {
+            if (crc & 0x8000)
+                crc = (crc << 1) ^ 0x1021;
+            else
+                crc <<= 1;
+        }
+
+        return crc;
+    }
