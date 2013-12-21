@@ -74,8 +74,8 @@ void timerCallback0() {
 void setup()
 {
   pinMode(txPin, OUTPUT);
-  Serial.begin(9600);
   Serial1.begin(9600);
+  delay(2000);
   setupGPS();
 }
 
@@ -90,19 +90,20 @@ void loop()
   if(navmode != 6) {
     setupGPS();
   }
-  
+  delay(100);
   gps_check_lock();
-  gps_get_position();
+  delay(100);
   gps_get_time();
+  delay(100);
+  gps_get_position();
   
-  n=sprintf (superbuffer, "$$ATLAS,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d", count, gps_hour, gps_minute, gps_second, lat, lon, alt, sats, lock, navmode);
+  
+  n=sprintf (superbuffer, "$$ATLAS,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d", count, gps_hour, gps_minute, gps_second, lat, lon, alt, sats, lock, navmode, GPSerror);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
-  
-  Serial.println(superbuffer);
   
   rtty_txstring("$$");
   rtty_txstring(superbuffer);
-  delay(1000);
+  //delay(1000);
 }
 
 //************Other Functions*****************
@@ -147,7 +148,6 @@ uint16_t crc_xmodem_update (uint16_t crc, uint8_t data)
 void sendUBX(uint8_t *MSG, uint8_t len) {
   for(int i=0; i<len; i++) {
     Serial1.write(MSG[i]);
-    Serial.write(MSG[i]);
   }
 }
 
@@ -213,7 +213,7 @@ void gps_get_data()
       i++;
     }
     // Timeout if no valid response in 1 gps_seconds
-    if (millis() - startTime > 1000) {
+    if (millis() - startTime > 1500) {
       break;
     }
     }
@@ -225,7 +225,7 @@ void gps_get_data()
 void gps_check_lock()
 {
     GPSerror = 0;
-    Serial1.flush();
+    //Serial1.flush();
     // Construct the request to the GPS
     uint8_t request[8] = {0xB5, 0x62, 0x01, 0x06, 0x00, 0x00,
         0x07, 0x16};
@@ -267,7 +267,7 @@ void gps_check_lock()
 void gps_get_position()
 {
     GPSerror = 0;
-    Serial1.flush();
+    //Serial1.flush();
     // Request a NAV-POSLLH message from the GPS
     uint8_t request[8] = {0xB5, 0x62, 0x01, 0x02, 0x00, 0x00, 0x03,
         0x0A};
@@ -312,7 +312,7 @@ void gps_get_position()
 void gps_get_time()
 {
     GPSerror = 0;
-    Serial1.flush();
+    //Serial1.flush();
     // Send a NAV-TIMEUTC message to the receiver
     uint8_t request[8] = {0xB5, 0x62, 0x01, 0x21, 0x00, 0x00,
         0x22, 0x67};
