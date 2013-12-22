@@ -6,7 +6,7 @@
 
 IntervalTimer timer0;
 
-int txPin = 13;
+int txPin = 11, enPin = 12, ledPin = 13;
 volatile uint32_t timer0count;
 volatile char c;
 
@@ -17,12 +17,9 @@ char superbuffer [80]; //Telem string buffer
 uint8_t buf[60]; //GPS receive buffer
 int count = 0;
 
-
-
 // RTTY Functions - from RJHARRISON's AVR Code
 void rtty_txstring (char * string)
 {
-
 	/* Simple function to sent a char at a time to 
 	** rtty_txbyte function. 
 	** NB Each char is one byte (8 Bits)
@@ -31,7 +28,7 @@ void rtty_txstring (char * string)
 	while ( c != '\0')
 	{
           timer0count = 0;
-          timer0.begin(timerCallback0, 19925); // 19925 (21000 - 18850 microgps_seconds)
+          timer0.begin(timerCallback0, 19925); // 19925 (21000 - 18850 microseconds)
           while(timer0count < 11){}
           timer0.end();
           c = *string++;
@@ -44,11 +41,13 @@ void rtty_txbit (int bit)
 		{
 		  // high
                   digitalWrite(txPin, HIGH);
+                  digitalWrite(ledPin, HIGH);
 		}
 		else
 		{
 		  // low
                   digitalWrite(txPin, LOW);
+                  digitalWrite(ledPin, LOW);
 		}       
                 
 }
@@ -74,9 +73,21 @@ void timerCallback0() {
 void setup()
 {
   pinMode(txPin, OUTPUT);
+  pinMode(enPin, OUTPUT);
+  pinMode(ledPin, OUTPUT);
+  
   Serial1.begin(9600);
-  delay(2000);
+  Serial.begin(9600);
+  
+  digitalWrite(enPin, HIGH);
+  
+  digitalWrite(ledPin, HIGH);
+  delay(5000); //delay to allow GPS to fully boot
+  digitalWrite(ledPin, LOW);
+  
+  rtty_txstring("$$$$");
   setupGPS();
+  delay(2000);
 }
 
 void loop()
@@ -86,10 +97,10 @@ void loop()
   
   gps_check_nav();
   
-  
-  if(navmode != 6) {
+  if(navmode != 6 && count > 5) {
     setupGPS();
   }
+  
   delay(100);
   gps_check_lock();
   delay(100);
@@ -101,9 +112,11 @@ void loop()
   n=sprintf (superbuffer, "$$ATLAS,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d", count, gps_hour, gps_minute, gps_second, lat, lon, alt, sats, lock, navmode, GPSerror);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
   
+  Serial.println(superbuffer);
+  
   rtty_txstring("$$");
   rtty_txstring(superbuffer);
-  //delay(1000);
+  
 }
 
 //************Other Functions*****************
@@ -153,21 +166,24 @@ void sendUBX(uint8_t *MSG, uint8_t len) {
 
 void setupGPS() {
   
+  Serial1.clear();
   // Taken from Project Swift (rather than the old way of sending ascii text)
   uint8_t setNMEAoff[] = {0xB5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xD0, 0x08, 0x00, 0x00, 0x80, 0x25, 0x00, 0x00, 0x07, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA0, 0xA9};
   sendUBX(setNMEAoff, sizeof(setNMEAoff)/sizeof(uint8_t));
   
   delay(500);
+  
   // Check and set the navigation mode (Airborne, 1G)
   uint8_t setNav[] = {0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 0xFF, 0xFF, 0x06, 0x03, 0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x05, 0x00, 0xFA, 0x00, 0xFA, 0x00, 0x64, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16, 0xDC};
   sendUBX(setNav, sizeof(setNav)/sizeof(uint8_t));
   
+  /*
   delay(500);
   
   //set GPS to Eco mode (reduces current by 4mA)
   uint8_t setEco[] = {0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x00, 0x04, 0x1D, 0x85};
   sendUBX(setEco, sizeof(setEco)/sizeof(uint8_t));
-  
+  */
 }
 
 /**
@@ -200,7 +216,7 @@ bool _gps_verify_checksum(uint8_t* data, uint8_t len)
 }
 
 /**
- * Get data from GPS, times out after 1 gps_second.
+ * Get data from GPS, times out after 1.5 second.
  */
 void gps_get_data()
 {
@@ -212,7 +228,7 @@ void gps_get_data()
       buf[i] = Serial1.read();
       i++;
     }
-    // Timeout if no valid response in 1 gps_seconds
+    // Timeout if no valid response in 1.5 seconds
     if (millis() - startTime > 1500) {
       break;
     }
@@ -225,7 +241,8 @@ void gps_get_data()
 void gps_check_lock()
 {
     GPSerror = 0;
-    //Serial1.flush();
+    Serial1.flush();
+    Serial1.clear();
     // Construct the request to the GPS
     uint8_t request[8] = {0xB5, 0x62, 0x01, 0x06, 0x00, 0x00,
         0x07, 0x16};
@@ -267,7 +284,8 @@ void gps_check_lock()
 void gps_get_position()
 {
     GPSerror = 0;
-    //Serial1.flush();
+    Serial1.flush();
+    Serial1.clear();
     // Request a NAV-POSLLH message from the GPS
     uint8_t request[8] = {0xB5, 0x62, 0x01, 0x02, 0x00, 0x00, 0x03,
         0x0A};
@@ -312,7 +330,8 @@ void gps_get_position()
 void gps_get_time()
 {
     GPSerror = 0;
-    //Serial1.flush();
+    Serial1.flush();
+    Serial1.clear();
     // Send a NAV-TIMEUTC message to the receiver
     uint8_t request[8] = {0xB5, 0x62, 0x01, 0x21, 0x00, 0x00,
         0x22, 0x67};
@@ -352,6 +371,8 @@ void gps_get_time()
  */
 uint8_t gps_check_nav(void)
 {
+    Serial1.flush();
+    Serial1.clear();
     uint8_t request[8] = {0xB5, 0x62, 0x06, 0x24, 0x00, 0x00,
         0x2A, 0x84};
     sendUBX(request, 8);
