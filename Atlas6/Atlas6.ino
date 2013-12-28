@@ -99,7 +99,6 @@ void hellsend(char c)
   }
   for (i=0; i<N_HELL; i++) {
     if (helltab[i].c == c) {
-      //Serial.print(helltab[i].c) ;
       
       for (j=0; j<=4; j++) 
       {
@@ -229,13 +228,13 @@ void loop()
   voltage = analogRead(8);
   int_temp =  analogRead(38);
   
-  n=sprintf (superbuffer, "$$ATLAS,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d,%d,%d", count, gps_hour, gps_minute, gps_second, lat, lon, alt, sats, lock, navmode, GPSerror, voltage,int_temp);
+  n=sprintf (superbuffer, "$$ATLAS,%d,%02d:%02d:%02d,%ld,%ld,%ld,%d,%d,%d,%d,%d,%d", count, gps_hour, gps_minute, gps_second, lat, lon, alt, sats, lock, navmode, GPSerror, voltage, int_temp);
   n = sprintf (superbuffer, "%s*%04X\n", superbuffer, gps_CRC16_checksum(superbuffer));
-  
-  //Serial.println(superbuffer);
   
   if((count % 20) == 0){
     hellsendmsg(superbuffer);
+    delay(500);
+    rtty_txstring("$$$$$$$$$$$$");
   }
   else {
     rtty_txstring("$$");
